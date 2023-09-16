@@ -6,6 +6,7 @@ const fs = require("fs");
 const mongoose = require("mongoose");
 const chalk = require("chalk");
 const Webserver = require("./webserver/webserver.js");
+const invites = require("./modals/invites.js");
 
 const eventsPath = path.join(__dirname, 'events');
 const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
@@ -28,6 +29,8 @@ mongoose.connect(process.env.MONGOURI, {
     keepAlive: true
 }).then(() => console.log(chalk.default.greenBright("Connected to database")));
 
+client.invites = {};
+
 client.once("ready", async () => {
     if (!process.env.LOGCHANNEL) {
         console.log(chalk.default.red("Logchannel not specified!"));
@@ -43,15 +46,25 @@ client.once("ready", async () => {
     let guild = client.guilds.cache.get(process.env.GUILDID);
 
     if (!guild) {
-        console.log(chalk.default.yellow(`Invite the bot with the following link:\nhttps://discord.com/api/oauth2/authorize?client_id=${process.env.BOTID}&permissions=274878228480&scope=bot`));
+        console.log(chalk.default.yellow(`Invite the bot with the following link:\nhttps://discord.com/api/oauth2/authorize?client_id=${process.env.BOTID}&permissions=274878179345&scope=bot`));
         return client.destroy();
     }
+
+    await guild.channels.fetch();
+    let invitechannel = guild.channels.cache.get(process.env.INVITECHANNEL)
+
+    invitechannel.fetchInvites().then(guildInvites => {
+        guildInvites.each(guildInvite => {
+            client.invites[guildInvite.code] = guildInvite.uses
+        });
+        console.log(chalk.default.greenBright("Fetched all invites"));
+    })
 
     console.log(chalk.default.greenBright(`${chalk.default.yellow(client.user.tag)} is now online!`));
 
     /* --- Set the presence --- */
     client.user.setPresence({
-        activities: [{ name: `you!`, type: ActivityType.Watching }],
+        activities: [{ name: process.env.ACTIVITYMSG || "you!", type: ActivityType[process.env.ACTIVITYTYPE || "Watching"] }],
         status: 'online',
     });
 
@@ -76,6 +89,54 @@ client.once("ready", async () => {
 
     /* --- Start the webserver --- */
     Webserver(client);
+});
+
+client.on('inviteCreate', (invite) => { //if someone creates an invite while bot is running, update store
+    client.invites[invite.code] = invite.uses
+});
+
+client.on("guildMemberAdd", async (member) => {
+    await client.guilds.fetch();
+    let guild = client.guilds.cache.get(process.env.GUILDID);
+    if (!guild) {
+        console.log(chalk.default.yellow(`Invite the bot with the following link:\nhttps://discord.com/api/oauth2/authorize?client_id=${process.env.BOTID}&permissions=274878179345&scope=bot`));
+        return client.destroy();
+    }
+
+    await guild.channels.fetch();
+    let logchannel = guild.channels.cache.get(process.env.LOGCHANNEL)
+    let invitechannel = guild.channels.cache.get(process.env.INVITECHANNEL)
+
+    invitechannel.fetchInvites().then(guildInvites => {
+        guildInvites.each(async (invite) => {
+            if (invite.uses != client.invites[invite.code]) {
+                let invitedoc = await invites.findOne({ invite: invite.code });
+                logchannel.send({
+                    "content": "",
+                    "tts": false,
+                    "embeds": [
+                        {
+                            "id": 42030309,
+                            "fields": [],
+                            "title": `${member.user.globalName}`,
+                            "color": 0x2B2D31,
+                            "description": `**User**\n<@${member.user.id}>\n\n**Invite code**\n\`${invitedoc.invite || "Not found? He?"}\`\n\n**IP Adress**\n\`${invitedoc.ip || "Not found"}\`\n\n**Location**\n\`${invitedoc.geo?.country || "Country not found"}, ${invitedoc.geo?.city || "City not found"}\`\n\n**Operating System**\n\`${invitedoc.os?.name || "OS name not found"} ${invitedoc.os?.version || "OS version not found"}\`\n\n**Browser**\n\`${invitedoc.browser?.name || "Browser name not found"} ${invitedoc.browser?.version || "Browser version not found"}\`\n\n**Engine**\n\`${invitedoc.engine?.name || "Engine name not found"} ${invitedoc.engine?.version || "Engine version not found"}\`\n\n**CPU Architecture**\n\`${invitedoc.cpu?.architecture || "Not found"}\``,
+                            "thumbnail": {
+                                "url": `https://cdn.discordapp.com/avatars/${member.user.id}/${member.user.avatar}.png?size=512`
+                            },
+                            "footer": {
+                                "text": member.user.id,
+                                "icon_url": `https://cdn.discordapp.com/avatars/${member.user.id}/${member.user.avatar}.png?size=512`
+                            },
+                            "timestamp": new Date().toISOString(),
+                        }
+                    ]
+                });
+                client.invites[invite.code] = invite.uses
+                await invitedoc.deleteOne();
+            }
+        })
+    })
 });
 
 client.on("error", (err) => {
