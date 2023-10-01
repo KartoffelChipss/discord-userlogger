@@ -20,7 +20,7 @@ INVITECHANNEL="978703400411734066" # The channel for the discord invites
 # Bot Configuration
 # You need to create a Discord app in the Discord Developer Portal (https://discord.com/developers/applications) and enter all details below
 BOTID="1152332981499863040" # Found on the "General Information" Tab under "APPLICATION ID"
-TOKEN="MTE1MjMzMjk4MTQ5OTg2MzA0MA.GSy1TI.Iw3bLjOS8gXCwy02XkInfF0TWSlBW68vcR_qFE" # Found on the "Bot" Tab under "TOKEN". You might need to reset the token, but be carefull to not show this token to anyone else!
+TOKEN="yourtoken" # Found on the "Bot" Tab under "TOKEN". You might need to reset the token, but be carefull to not show this token to anyone else!
 ACTIVITYTYPE="Watching" # possible options: "Watching", "Listening", "Playing", "Streaming"
 ACTIVITYMSG="you!"
 
