@@ -4,6 +4,12 @@ const guildBotSchema = new Schema({
     invite: {
         type: String,
     },
+    userid: {
+        type: String,
+    },
+    username: {
+        type: String,
+    },
     ua: {
         type: String,
     },
