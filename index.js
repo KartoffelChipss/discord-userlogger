@@ -135,7 +135,7 @@ client.on("guildMemberAdd", async (member) => {
                 client.invites[invite.code] = invite.uses;
                 invitedoc.username = member.user.globalName;
                 invitedoc.userid = member.user.id;
-                //await invitedoc.deleteOne();
+                invitedoc.save();
             }
         })
     })
